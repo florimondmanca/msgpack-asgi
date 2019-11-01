@@ -7,7 +7,7 @@ If you have a web API exchanging JSON data with the outside world, `msgpack-asgi
 - If the client sends MessagePack-encoded data, `msgpack-asgi` will automatically re-encode it to JSON for your application to consume.
 - If the client supports receiving MessagePack-encoded responses, `msgpack-asgi` will automatically re-encode JSON response data to MessagePack.
 
-(And in other cases, MessagePack won't intervene at all.)
+(And in other cases, `msgpack-asgi` won't intervene at all.)
 
 ## Quickstart
 
