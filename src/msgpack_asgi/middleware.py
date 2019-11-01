@@ -5,7 +5,7 @@ from starlette.datastructures import Headers, MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 
-class MsgPackMiddleware:
+class MessagePackMiddleware:
     def __init__(self, app: ASGIApp) -> None:
         self.app = app
 

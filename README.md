@@ -29,12 +29,12 @@ async def home(request):
         return JSONResponse({"message": "Hello, msgpack!"})
 ```
 
-Then, wrap your application around `MsgPackMiddleware`:
+Then, wrap your application around `MessagePackMiddleware`:
 
 ```python
-from msgpack_asgi.middleware import MsgPackMiddleware
+from msgpack_asgi.middleware import MessagePackMiddleware
 
-app.add_middleware(MsgPackMiddleware)
+app.add_middleware(MessagePackMiddleware)
 ```
 
 Serve your application using an ASGI server, for example with [Uvicorn](https://www.uvicorn.org):
