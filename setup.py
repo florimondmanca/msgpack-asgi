@@ -20,7 +20,7 @@ def get_long_description() -> str:
 setup(
     name="msgpack-asgi",
     version=get_version("msgpack_asgi"),
-    description="MsgPack support for ASGI apps and frameworks",
+    description="Drop-in MessagePack support for ASGI applications and frameworks",
     long_description=get_long_description(),
     long_description_content_type="text/markdown",
     url="http://github.com/florimondmanca/msgpack-asgi",
