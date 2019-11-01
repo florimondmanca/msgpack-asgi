@@ -105,6 +105,8 @@ That's all there is to it! You can now go reduce the size of your payloads. :-)
 
 ## How it works
 
+![](https://github.com/florimondmanca/msgpack-asgi/blob/master/img/msgpack-asgi.png)
+
 An ASGI application wrapped around `MessagePackMiddleware` will perform automatic content negotiation based on the client's capabilities. More precisely:
 
 - If the client sends MessagePack-encoded data with the `application/x-msgpack` content type, `msgpack-asgi` will automatically re-encode it to JSON for your application to consume.
