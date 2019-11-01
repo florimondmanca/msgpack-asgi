@@ -1,6 +1,5 @@
 import msgpack
 import json
-import io
 
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -10,87 +9,100 @@ class MsgPackMiddleware:
     def __init__(self, app: ASGIApp) -> None:
         self.app = app
 
-    def _get_app(self, scope: Scope) -> ASGIApp:
-        if scope["type"] != "http":
-            return self.app
-        headers = Headers(scope=scope)
-        if "application/x-msgpack" not in headers.getlist("Content-Type"):
-            return self.app
-        return MsgPackResponder(self.app)
-
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        app = self._get_app(scope)
-        await app(scope, receive, send)
+        if scope["type"] == "http":
+            responder = MsgPackResponder(self.app)
+            await responder(scope, receive, send)
+            return
+        await self.app(scope, receive, send)
 
 
 class MsgPackResponder:
     def __init__(self, app: ASGIApp) -> None:
         self.app = app
+        self.should_decode_from_msgpack_to_json = False
+        self.should_encode_from_json_to_msgpack = False
+        self.receive: Receive = unattached_receive
         self.send: Send = unattached_send
         self.initial_message: Message = {}
         self.started = False
-        self.buffer = io.BytesIO()
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        headers = Headers(scope=scope)
+        self.should_decode_from_msgpack_to_json = (
+            "application/x-msgpack" in headers.get("content-type", "")
+        )
+        # Take an initial guess, although we eventually may not
+        # be able to do the conversion.
+        self.should_encode_from_json_to_msgpack = (
+            "application/x-msgpack" in headers.getlist("accept")
+        )
+        self.receive = receive
         self.send = send
-        await self.app(scope, receive, self.send_with_msgpack)
+        await self.app(scope, self.receive_with_msgpack, self.send_with_msgpack)
+
+    async def receive_with_msgpack(self) -> Message:
+        message = await self.receive()
+
+        if not self.should_decode_from_msgpack_to_json:
+            print("should not decode")
+            return message
+
+        assert message["type"] == "http.request"
+
+        body = message["body"]
+        more_body = message.get("more_body", False)
+        while more_body:
+            message = await self.receive()
+            body += message["body"]
+            more_body = message.get("more_body", False)
+
+        obj = msgpack.unpackb(body, raw=False)
+        message["body"] = json.dumps(obj).encode()
+
+        return message
 
     async def send_with_msgpack(self, message: Message) -> None:
-        message_type = message["type"]
-        if message_type == "http.response.start":
+        if not self.should_encode_from_json_to_msgpack:
+            await self.send(message)
+            return
+
+        if message["type"] == "http.response.start":
+            headers = Headers(raw=message["headers"])
+            if headers["content-type"] != "application/json":
+                # Client accepts msgpack, but the app did not send JSON data.
+                # (Note that it may have sent msgpack-encoded data.)
+                self.should_encode_from_json_to_msgpack = False
+                await self.send(message)
+                return
+
             # Don't send the initial message until we've determined how to
-            # modify the outgoing headers correctly.
+            # modify the ougoging headers correctly.
             self.initial_message = message
 
-        elif message_type == "http.response.body" and not self.started:
-            self.started = True
+        elif message["type"] == "http.response.body":
+            assert self.should_encode_from_json_to_msgpack
+
             body = message.get("body", b"")
             more_body = message.get("more_body", False)
+            if more_body:  # pragma: no cover
+                raise NotImplementedError(
+                    "Encoding streaming responses to msgpack isn't supported yet"
+                )
 
-            if not more_body:
-                # Standard response.
-                self.buffer.write(body)
-                self.buffer.close()
-                body = self.buffer.getvalue()
-                obj = msgpack.unpackb(body)
-                body = json.dumps(obj)
+            body = msgpack.packb(json.loads(body))
 
-                headers = MutableHeaders(raw=self.initial_message["headers"])
-                headers["Content-Type"] = "application/x-msgpack"
-                headers["Content-Length"] = str(len(body))
-                message["body"] = body
+            headers = MutableHeaders(raw=self.initial_message["headers"])
+            headers["Content-Type"] = "application/x-msgpack"
+            headers["Content-Length"] = str(len(body))
+            message["body"] = body
 
-                await self.send(self.initial_message)
-                await self.send(message)
-
-            else:
-                # Initial body in streaming response.
-                headers = MutableHeaders(raw=self.initial_message["headers"])
-                headers["Content-Type"] = "application/x-msgpack"
-                del headers["Content-Length"]
-
-                self.buffer.write(body)
-                message["body"] = self.buffer.getvalue()
-                self.buffer.seek(0)
-                self.buffer.truncate()
-
-                await self.send(self.initial_message)
-                await self.send(message)
-
-        elif message_type == "http.response.body":
-            # Remaining body in streaming response.
-            body = message.get("body", b"")
-            more_body = message.get("more_body", False)
-
-            self.buffer.write(body)
-            if not more_body:
-                self.buffer.close()
-
-            message["body"] = self.buffer.getvalue()
-            self.buffer.seek(0)
-            self.buffer.truncate()
-
+            await self.send(self.initial_message)
             await self.send(message)
+
+
+async def unattached_receive() -> Message:
+    raise RuntimeError("receive awaitable not set")  # pragma: no cover
 
 
 async def unattached_send(message: Message) -> None:
