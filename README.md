@@ -92,7 +92,7 @@ b'\x81\xa7message\xafHello, msgpack!'
 {'data': {'message': 'Hi, there!'}}
 ```
 
-That's all there is to it!
+That's all there is to it! You can now go reduce the size of your payloads. :-)
 
 ## License
 
