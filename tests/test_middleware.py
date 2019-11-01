@@ -3,7 +3,7 @@ import msgpack
 import pytest
 
 from msgpack_asgi.middleware import MessagePackMiddleware
-from msgpack_asgi.responses import MsgPackResponse
+from msgpack_asgi.responses import MessagePackResponse
 from tests.utils import (
     mock_receive,
     mock_send,
@@ -78,7 +78,7 @@ def test_msgpack_accepted_but_response_is_not_json() -> None:
 
 
 def test_msgpack_accepted_and_response_is_already_msgpack() -> None:
-    app = MessagePackMiddleware(MsgPackResponse({"message": "Hello, world!"}))
+    app = MessagePackMiddleware(MessagePackResponse({"message": "Hello, world!"}))
 
     with httpx.Client(app=app, base_url="http://testserver") as client:
         r = client.get("/", headers={"accept": "application/x-msgpack"})

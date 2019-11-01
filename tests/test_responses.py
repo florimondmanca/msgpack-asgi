@@ -1,12 +1,12 @@
 import msgpack
 import httpx
 
-from msgpack_asgi.responses import MsgPackResponse
+from msgpack_asgi.responses import MessagePackResponse
 
 
 def test_msgpack_response() -> None:
     content = {"message": "Hello, world!"}
-    app = MsgPackResponse(content=content)
+    app = MessagePackResponse(content=content)
 
     with httpx.Client(app=app, base_url="http://testserver") as client:
         r = client.get("/")
