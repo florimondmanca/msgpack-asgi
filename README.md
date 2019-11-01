@@ -11,6 +11,14 @@ An application wrapped around `MessagePackMiddleware` will perform automatic con
 
 (In other cases, `msgpack-asgi` won't intervene at all.)
 
+## Installation
+
+This package will be released to PyPI soon. For now, you can install it using:
+
+```bash
+pip install "git+https://github.com/florimondmanca/msgpack-asgi"
+```
+
 ## Quickstart
 
 First, you'll need an ASGI application. Let's use this sample [Starlette](https://www.starlette.io) application, which exposes an endpoint that returns JSON data:
