@@ -1,13 +1,15 @@
 # msgpack-asgi
 
-Drop-in [MessagePack](https://msgpack.org/) support for ASGI applications and frameworks. `msgpack-asgi` gives you the performance benefits of MessagePack without having to change your existing code.
+Drop-in [MessagePack](https://msgpack.org/) support for ASGI applications and frameworks.
 
-If you have a web API exchanging JSON data with the outside world, `msgpack-asgi` will automatically convert JSON data to MessagePack in order to save bandwitdth. For example:
+`msgpack-asgi` gives you the performance benefits of MessagePack (mainly reduced bandwidth usage) without having to change existing code.
 
-- If the client sends MessagePack-encoded data, `msgpack-asgi` will automatically re-encode it to JSON for your application to consume.
-- If the client supports receiving MessagePack-encoded responses, `msgpack-asgi` will automatically re-encode JSON response data to MessagePack.
+An application wrapped around `MessagePackMiddleware` will perform automatic content negotiation based on the client's capabilities. More precisely:
 
-(And in other cases, `msgpack-asgi` won't intervene at all.)
+- If the client sends MessagePack-encoded data with the `application/x-msgpack` content type, `msgpack-asgi` will automatically re-encode it to JSON for your application to consume.
+- If the client sent the `Accept: application/x-msgpack` header, `msgpack-asgi` will automatically re-encode any JSON response data to MessagePack for the client to consume.
+
+(In other cases, `msgpack-asgi` won't intervene at all.)
 
 ## Quickstart
 
