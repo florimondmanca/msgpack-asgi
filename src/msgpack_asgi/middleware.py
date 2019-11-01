@@ -45,17 +45,21 @@ class MsgPackResponder:
         message = await self.receive()
 
         if not self.should_decode_from_msgpack_to_json:
-            print("should not decode")
             return message
 
         assert message["type"] == "http.request"
 
         body = message["body"]
         more_body = message.get("more_body", False)
-        while more_body:
+        if more_body:
+            # Some implementations (e.g. HTTPX) may send one more empty-body message.
+            # Make sure they don't send one that contains a body, or it means
+            # that clients attempt to stream the request body.
             message = await self.receive()
-            body += message["body"]
-            more_body = message.get("more_body", False)
+            if message["body"] != b"":  # pragma: no cover
+                raise NotImplementedError(
+                    "Streaming the request body isn't supported yet"
+                )
 
         obj = msgpack.unpackb(body, raw=False)
         message["body"] = json.dumps(obj).encode()
@@ -87,7 +91,7 @@ class MsgPackResponder:
             more_body = message.get("more_body", False)
             if more_body:  # pragma: no cover
                 raise NotImplementedError(
-                    "Encoding streaming responses to msgpack isn't supported yet"
+                    "Streaming the response body isn't supported yet"
                 )
 
             body = msgpack.packb(json.loads(body))
