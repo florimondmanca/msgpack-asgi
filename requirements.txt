@@ -1,0 +1,13 @@
+-e .
+
+black
+flake8
+flake8-bugbear
+flake8-comprehensions
+isort
+httpx
+mypy
+nox
+pytest
+pytest-asyncio
+pytest-cov
