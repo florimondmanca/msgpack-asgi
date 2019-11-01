@@ -1,15 +1,12 @@
 # msgpack-asgi
 
-Drop-in [MessagePack](https://msgpack.org/) support for ASGI applications and frameworks.
+`msgpack-asgi` allows you to add automatic [MessagePack](https://msgpack.org/) content negotiation to ASGI applications with a single line of code:
 
-`msgpack-asgi` gives you the performance benefits of MessagePack (mainly reduced bandwidth usage) without having to change existing code.
+```python
+app = MessagePackMiddleware(app)
+```
 
-An application wrapped around `MessagePackMiddleware` will perform automatic content negotiation based on the client's capabilities. More precisely:
-
-- If the client sends MessagePack-encoded data with the `application/x-msgpack` content type, `msgpack-asgi` will automatically re-encode it to JSON for your application to consume.
-- If the client sent the `Accept: application/x-msgpack` header, `msgpack-asgi` will automatically re-encode any JSON response data to MessagePack for the client to consume.
-
-(In other cases, `msgpack-asgi` won't intervene at all.)
+This gives you the performance benefits of MessagePack (e.g. reduced bandwidth usage) without having to change existing code. See also [How it works](#how-it-works).
 
 ## Installation
 
@@ -101,6 +98,15 @@ b'\x81\xa7message\xafHello, msgpack!'
 ```
 
 That's all there is to it! You can now go reduce the size of your payloads. :-)
+
+## How it works
+
+An ASGI application wrapped around `MessagePackMiddleware` will perform automatic content negotiation based on the client's capabilities. More precisely:
+
+- If the client sends MessagePack-encoded data with the `application/x-msgpack` content type, `msgpack-asgi` will automatically re-encode it to JSON for your application to consume.
+- If the client sent the `Accept: application/x-msgpack` header, `msgpack-asgi` will automatically re-encode any JSON response data to MessagePack for the client to consume.
+
+(In other cases, `msgpack-asgi` won't intervene at all.)
 
 ## License
 
