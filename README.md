@@ -99,6 +99,10 @@ b'\x81\xa7message\xafHello, msgpack!'
 
 That's all there is to it! You can now go reduce the size of your payloads. :-)
 
+## Limitations
+
+`msgpack-asgi` does not support request or response streaming. This is because the full request and response body content has to be loaded in memory before it can be re-encoded.
+
 ## How it works
 
 An ASGI application wrapped around `MessagePackMiddleware` will perform automatic content negotiation based on the client's capabilities. More precisely:
