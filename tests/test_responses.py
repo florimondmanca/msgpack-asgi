@@ -1,5 +1,5 @@
-import msgpack
 import httpx
+import msgpack
 
 from msgpack_asgi.responses import MessagePackResponse
 

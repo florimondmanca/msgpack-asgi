@@ -1,5 +1,6 @@
 -e .
 
+autoflake
 black
 flake8
 flake8-bugbear
@@ -11,3 +12,4 @@ nox
 pytest
 pytest-asyncio
 pytest-cov
+seed-isort-config
