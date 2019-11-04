@@ -11,13 +11,13 @@ class MessagePackMiddleware:
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] == "http":
-            responder = MsgPackResponder(self.app)
+            responder = _MessagePackResponder(self.app)
             await responder(scope, receive, send)
             return
         await self.app(scope, receive, send)
 
 
-class MsgPackResponder:
+class _MessagePackResponder:
     def __init__(self, app: ASGIApp) -> None:
         self.app = app
         self.should_decode_from_msgpack_to_json = False
