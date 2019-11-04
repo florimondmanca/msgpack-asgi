@@ -1,16 +1,13 @@
 import httpx
 import msgpack
 import pytest
+from starlette.requests import Request
+from starlette.responses import JSONResponse, PlainTextResponse
+from starlette.types import Receive, Scope, Send
 
 from msgpack_asgi.middleware import MessagePackMiddleware
 from msgpack_asgi.responses import MessagePackResponse
-from tests.utils import (
-    mock_receive,
-    mock_send,
-)
-from starlette.types import Scope, Receive, Send
-from starlette.requests import Request
-from starlette.responses import PlainTextResponse, JSONResponse
+from tests.utils import mock_receive, mock_send
 
 
 def test_msgpack_request() -> None:

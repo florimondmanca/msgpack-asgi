@@ -1,6 +1,6 @@
-import msgpack
 import json
 
+import msgpack
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 

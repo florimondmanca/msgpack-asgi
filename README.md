@@ -1,5 +1,9 @@
 # msgpack-asgi
 
+[![Build Status](https://travis-ci.com/florimondmanca/msgpack-asgi.svg?branch=master)](https://travis-ci.com/florimondmanca/msgpack-asgi)
+[![Coverage](https://codecov.io/gh/florimondmanca/msgpack-asgi/branch/master/graph/badge.svg)](https://codecov.io/gh/florimondmanca/msgpack-asgi)
+[![Package version](https://badge.fury.io/py/msgpack-asgi.svg)](https://pypi.org/project/msgpack-asgi)
+
 `msgpack-asgi` allows you to add automatic [MessagePack](https://msgpack.org/) content negotiation to ASGI applications with a single line of code:
 
 ```python

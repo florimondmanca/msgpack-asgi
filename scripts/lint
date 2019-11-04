@@ -1,0 +1,14 @@
+#!/bin/sh -e
+
+export PREFIX=""
+if [ -d 'venv' ] ; then
+    export PREFIX="venv/bin/"
+fi
+export SOURCE_FILES="src/msgpack_asgi tests"
+
+set -x
+
+${PREFIX}autoflake --in-place --recursive $SOURCE_FILES
+${PREFIX}seed-isort-config --application-directories=msgpack_asgi
+${PREFIX}isort --project=msgpack_asgi --recursive --apply $SOURCE_FILES
+${PREFIX}black --target-version=py36 $SOURCE_FILES
