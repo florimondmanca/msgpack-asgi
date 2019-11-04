@@ -12,12 +12,14 @@ app = MessagePackMiddleware(app)
 
 This gives you the performance benefits of MessagePack (e.g. reduced bandwidth usage) without having to change existing code. See also [How it works](#how-it-works).
 
+**Note**: this project is in an alpha stage.
+
 ## Installation
 
-This package will be released to PyPI soon. For now, you can install it using:
+Install with pip:
 
 ```bash
-pip install "git+https://github.com/florimondmanca/msgpack-asgi"
+pip install "mspack-asgi==0.*"
 ```
 
 ## Quickstart
