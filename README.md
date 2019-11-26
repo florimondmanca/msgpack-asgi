@@ -24,22 +24,28 @@ pip install "mspack-asgi==0.*"
 
 ## Quickstart
 
-First, you'll need an ASGI application. Let's use this sample [Starlette](https://www.starlette.io) application, which exposes an endpoint that returns JSON data:
+First, you'll need an ASGI application. Let's use this sample application, which exposes an endpoint that returns JSON data:
 
 ```python
-from starlette.applications import Starlette
+# For convenience, we use some ASGI components from Starlette.
+# Install with: `$ pip install starlette`.
+from starlette.requests import Request
 from starlette.responses import JSONResponse
 
-app = Starlette()
 
-
-@app.route("/", methods=["GET", "POST"])
-async def home(request):
+async def get_response(request):
     if request.method == "POST":
         data = await request.json()
         return JSONResponse({"data": data})
     else:
         return JSONResponse({"message": "Hello, msgpack!"})
+
+
+async def app(scope, receive, send):
+    assert scope["type"] == "http"
+    request = Request(scope=scope)
+    response = await get_response(request)
+    await response(scope, receive, send)
 ```
 
 Then, wrap your application around `MessagePackMiddleware`:
@@ -47,7 +53,7 @@ Then, wrap your application around `MessagePackMiddleware`:
 ```python
 from msgpack_asgi.middleware import MessagePackMiddleware
 
-app.add_middleware(MessagePackMiddleware)
+app = MessagePackMiddleware(app)
 ```
 
 Serve your application using an ASGI server, for example with [Uvicorn](https://www.uvicorn.org):
@@ -76,14 +82,14 @@ content-type: application/x-msgpack
 
 What happened? Since we told the application that we accepted MessagePack-encoded responses, `msgpack-asgi` automatically converted the JSON data returned by the Starlette application to MessagePack.
 
-We can make sure the response contains valid MessagePack data by making the request again using [HTTPX](https://github.com/encode/httpx) (`$ pip install httpx`), and decoding the response content:
+We can make sure the response contains valid MessagePack data by making the request again in Python, and decoding the response content:
 
 ```python
->>> import httpx
+>>> import requests
 >>> import msgpack
 >>> url = "http://localhost:8000"
 >>> headers = {"accept": "application/x-msgpack"}
->>> r = httpx.get(url, headers=headers)
+>>> r = requests.get(url, headers=headers)
 >>> r.content
 b'\x81\xa7message\xafHello, msgpack!'
 >>> msgpack.unpackb(r.content, raw=False)
@@ -103,7 +109,7 @@ b'\x81\xa7message\xafHello, msgpack!'
 {'data': {'message': 'Hi, there!'}}
 ```
 
-That's all there is to it! You can now go reduce the size of your payloads. :-)
+That's all there is to it! You can now go reduce the size of your payloads.
 
 ## Limitations
 
