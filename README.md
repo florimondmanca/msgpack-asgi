@@ -99,12 +99,12 @@ b'\x81\xa7message\xafHello, msgpack!'
 `msgpack-asgi` also works in reverse: it will automatically decode MessagePack-encoded data sent by the client to JSON. We can try this out by making a `POST` request to our sample application with a MessagePack-encoded body:
 
 ```python
->>> import httpx
+>>> import requests
 >>> import msgpack
 >>> url = "http://localhost:8000"
 >>> data = msgpack.packb({"message": "Hi, there!"})
 >>> headers = {"content-type": "application/x-msgpack"}
->>> r = httpx.post(url, data=data, headers=headers)
+>>> r = requests.post(url, data=data, headers=headers)
 >>> r.json()
 {'data': {'message': 'Hi, there!'}}
 ```
