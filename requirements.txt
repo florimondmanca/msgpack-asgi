@@ -6,10 +6,11 @@ flake8
 flake8-bugbear
 flake8-comprehensions
 isort
-httpx
+httpx==0.7.*
 mypy
 nox
 pytest
 pytest-asyncio
 pytest-cov
 seed-isort-config
+uvicorn==0.10.*
