@@ -4,11 +4,13 @@
 [![Coverage](https://codecov.io/gh/florimondmanca/msgpack-asgi/branch/master/graph/badge.svg)](https://codecov.io/gh/florimondmanca/msgpack-asgi)
 [![Package version](https://badge.fury.io/py/msgpack-asgi.svg)](https://pypi.org/project/msgpack-asgi)
 
-`msgpack-asgi` allows you to add automatic [MessagePack](https://msgpack.org/) content negotiation to ASGI applications with a single line of code:
+`msgpack-asgi` allows you to add automatic [MessagePack](https://msgpack.org/) content negotiation to ASGI applications (Starlette, FastAPI, Quart, etc.), with a single line of code:
 
 ```python
 app = MessagePackMiddleware(app)
 ```
+
+_(You may want to adapt this snippet to your framework-specific middleware API.)_
 
 This gives you the performance benefits of MessagePack (e.g. reduced bandwidth usage) without having to change existing code. See also [How it works](#how-it-works).
 
