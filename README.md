@@ -7,7 +7,7 @@
 `msgpack-asgi` allows you to add automatic [MessagePack](https://msgpack.org/) content negotiation to ASGI applications (Starlette, FastAPI, Quart, etc.), with a single line of code:
 
 ```python
-app = MessagePackMiddleware(app)
+app.add_middleware(MessagePackMiddleware)
 ```
 
 _(You may want to adapt this snippet to your framework-specific middleware API.)_
