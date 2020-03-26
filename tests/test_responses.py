@@ -1,15 +1,17 @@
 import httpx
 import msgpack
+import pytest
 
 from msgpack_asgi.responses import MessagePackResponse
 
 
-def test_msgpack_response() -> None:
+@pytest.mark.asyncio
+async def test_msgpack_response() -> None:
     content = {"message": "Hello, world!"}
     app = MessagePackResponse(content=content)
 
-    with httpx.Client(app=app, base_url="http://testserver") as client:
-        r = client.get("/")
+    async with httpx.AsyncClient(app=app, base_url="http://testserver") as client:
+        r = await client.get("/")
 
     assert r.headers["content-type"] == "application/x-msgpack"
     assert int(r.headers["content-length"]) == len(msgpack.packb(content))
