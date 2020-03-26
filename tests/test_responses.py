@@ -2,7 +2,7 @@ import httpx
 import msgpack
 import pytest
 
-from msgpack_asgi.responses import MessagePackResponse
+from msgpack_asgi import MessagePackResponse
 
 
 @pytest.mark.asyncio
