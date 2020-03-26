@@ -53,7 +53,7 @@ async def app(scope, receive, send):
 Then, wrap your application around `MessagePackMiddleware`:
 
 ```python
-from msgpack_asgi.middleware import MessagePackMiddleware
+from msgpack_asgi import MessagePackMiddleware
 
 app = MessagePackMiddleware(app)
 ```

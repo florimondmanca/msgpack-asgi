@@ -5,8 +5,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, PlainTextResponse
 from starlette.types import Receive, Scope, Send
 
-from msgpack_asgi.middleware import MessagePackMiddleware
-from msgpack_asgi.responses import MessagePackResponse
+from msgpack_asgi import MessagePackMiddleware, MessagePackResponse
 from tests.utils import mock_receive, mock_send
 
 
