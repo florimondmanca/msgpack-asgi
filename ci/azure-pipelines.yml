@@ -1,0 +1,45 @@
+trigger:
+  - master
+
+pr:
+  - master
+
+variables:
+  CI: true
+  PIP_CACHE_DIR: $(Pipeline.Workspace)/.cache/pip
+
+jobs:
+  - job: Check
+    steps:
+      - template: templates/install.yml
+        parameters:
+          pythonVersion: "3.8"
+      - script: scripts/check
+        displayName: "Run checks"
+
+  - job: Test
+    strategy:
+      matrix:
+        Python36:
+          pythonVersion: "3.6"
+        Python37:
+          pythonVersion: "3.7"
+        Python38:
+          pythonVersion: "3.8"
+          uploadCoverage: true
+
+    steps:
+      - template: templates/install.yml
+        parameters:
+          pythonVersion: $(pythonVersion)
+      - script: scripts/test
+        displayName: "Run tests"
+      - script: |
+          if [ -f .coverage ]; then
+            python -m pip install codecov;
+            codecov --required;
+          fi
+        condition: eq(variables['uploadCoverage'], true)
+        env:
+          CODECOV_TOKEN: $(codecovToken)
+        displayName: "Upload coverage"
