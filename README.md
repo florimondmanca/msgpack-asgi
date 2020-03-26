@@ -14,8 +14,6 @@ _(You may want to adapt this snippet to your framework-specific middleware API.)
 
 This gives you the performance benefits of MessagePack (e.g. reduced bandwidth usage) without having to change existing code. See also [How it works](#how-it-works).
 
-**Note**: this project is in an alpha stage.
-
 ## Installation
 
 Install with pip:
