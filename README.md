@@ -19,7 +19,7 @@ This gives you the performance benefits of MessagePack (e.g. reduced bandwidth u
 Install with pip:
 
 ```bash
-pip install "mspack-asgi==1.*"
+pip install "msgpack-asgi==1.*"
 ```
 
 ## Quickstart
