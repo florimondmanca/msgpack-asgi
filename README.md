@@ -12,7 +12,9 @@ app.add_middleware(MessagePackMiddleware)
 
 _(You may want to adapt this snippet to your framework-specific middleware API.)_
 
-This gives you the performance benefits of MessagePack (e.g. reduced bandwidth usage) without having to change existing code. See also [How it works](#how-it-works).
+This gives you the bandwitdth usage reduction benefits of MessagePack without having to change existing code.
+
+**Note**: this comes at a CPU usage cost, since `MessagePackMiddleware` will perform MsgPack decoding while your application continues to decode and encode JSON data (see also [How it works](#how-it-works)). If your use case is CPU-sensitive, rather than strictly focused on reducing network bandwidth, this package may not be for you.
 
 ## Installation
 
