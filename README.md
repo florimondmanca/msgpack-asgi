@@ -43,7 +43,7 @@ async def get_response(request):
 
 async def app(scope, receive, send):
     assert scope["type"] == "http"
-    request = Request(scope=scope)
+    request = Request(scope=scope, receive=receive)
     response = await get_response(request)
     await response(scope, receive, send)
 ```
