@@ -2,10 +2,10 @@ import httpx
 import msgpack
 import pytest
 from starlette.requests import Request
-from starlette.responses import JSONResponse, PlainTextResponse
+from starlette.responses import JSONResponse, PlainTextResponse, Response
 from starlette.types import Receive, Scope, Send
 
-from msgpack_asgi import MessagePackMiddleware, MessagePackResponse
+from msgpack_asgi import MessagePackMiddleware
 from tests.utils import mock_receive, mock_send
 
 
@@ -79,7 +79,9 @@ async def test_msgpack_accepted_but_response_is_not_json() -> None:
 
 @pytest.mark.asyncio
 async def test_msgpack_accepted_and_response_is_already_msgpack() -> None:
-    app = MessagePackMiddleware(MessagePackResponse({"message": "Hello, world!"}))
+    data = msgpack.packb({"message": "Hello, world!"})
+    response = Response(data, media_type="application/x-msgpack")
+    app = MessagePackMiddleware(response)
 
     async with httpx.AsyncClient(app=app, base_url="http://testserver") as client:
         r = await client.get("/", headers={"accept": "application/x-msgpack"})
