@@ -1,4 +1,5 @@
 import json
+from typing import Any, Callable
 
 import msgpack
 from starlette.datastructures import Headers, MutableHeaders
@@ -6,20 +7,30 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 
 class MessagePackMiddleware:
-    def __init__(self, app: ASGIApp) -> None:
+    def __init__(
+        self, app: ASGIApp,
+        packb: Callable[[Any], bytes] = msgpack.packb,
+        unpackb: Callable[[bytes], Any] = msgpack.unpackb
+    ) -> None:
         self.app = app
+        self.packb = packb
+        self.unpackb = unpackb
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] == "http":
-            responder = _MessagePackResponder(self.app)
+            responder = _MessagePackResponder(self.app, self.packb, self.unpackb)
             await responder(scope, receive, send)
             return
         await self.app(scope, receive, send)
 
 
 class _MessagePackResponder:
-    def __init__(self, app: ASGIApp) -> None:
+    def __init__(
+        self, app: ASGIApp, packb: Callable[[Any], bytes],unpackb: Callable[[bytes], Any]
+    ) -> None:
         self.app = app
+        self.packb = packb
+        self.unpackb = unpackb
         self.should_decode_from_msgpack_to_json = False
         self.should_encode_from_json_to_msgpack = False
         self.receive: Receive = unattached_receive
@@ -61,7 +72,7 @@ class _MessagePackResponder:
                     "Streaming the request body isn't supported yet"
                 )
 
-        obj = msgpack.unpackb(body, raw=False)
+        obj = self.unpackb(body)
         message["body"] = json.dumps(obj).encode()
 
         return message
@@ -94,7 +105,7 @@ class _MessagePackResponder:
                     "Streaming the response body isn't supported yet"
                 )
 
-            body = msgpack.packb(json.loads(body))
+            body = self.packb(json.loads(body))
 
             headers = MutableHeaders(raw=self.initial_message["headers"])
             headers["Content-Type"] = "application/x-msgpack"
