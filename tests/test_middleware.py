@@ -27,7 +27,7 @@ async def test_msgpack_request() -> None:
         content = {"message": "Hello, world!"}
         body = msgpack.packb(content)
         r = await client.post(
-            "/", data=body, headers={"content-type": "application/x-msgpack"}
+            "/", content=body, headers={"content-type": "application/x-msgpack"}
         )
         assert r.status_code == 200
         assert r.text == "content_type='application/x-msgpack' message='Hello, world!'"
