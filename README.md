@@ -38,7 +38,7 @@ from starlette.responses import JSONResponse
 async def get_response(request):
     if request.method == "POST":
         data = await request.json()
-        return JSONResponse({"data": data})
+        return JSONResponse({"data": data}, status_code=201)
     else:
         return JSONResponse({"message": "Hello, msgpack!"})
 
