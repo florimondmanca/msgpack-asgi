@@ -10,6 +10,7 @@ class MessagePackMiddleware:
     def __init__(
         self,
         app: ASGIApp,
+        *,
         packb: Callable[[Any], bytes] = msgpack.packb,
         unpackb: Callable[[bytes], Any] = msgpack.unpackb,
     ) -> None:
@@ -29,6 +30,7 @@ class _MessagePackResponder:
     def __init__(
         self,
         app: ASGIApp,
+        *,
         packb: Callable[[Any], bytes],
         unpackb: Callable[[bytes], Any],
     ) -> None:
