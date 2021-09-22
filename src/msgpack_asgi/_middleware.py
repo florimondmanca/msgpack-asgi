@@ -20,7 +20,9 @@ class MessagePackMiddleware:
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] == "http":
-            responder = _MessagePackResponder(self.app, self.packb, self.unpackb)
+            responder = _MessagePackResponder(
+                self.app, packb=self.packb, unpackb=self.unpackb
+            )
             await responder(scope, receive, send)
             return
         await self.app(scope, receive, send)

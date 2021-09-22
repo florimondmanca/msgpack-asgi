@@ -113,3 +113,28 @@ async def test_request_is_not_http() -> None:
     app = MessagePackMiddleware(lifespan_only_app)
     scope = {"type": "lifespan"}
     await app(scope, mock_receive, mock_send)
+
+
+@pytest.mark.asyncio
+async def test_packb_unpackb() -> None:
+    async def app(scope: Scope, receive: Receive, send: Send) -> None:
+        request = Request(scope, receive)
+        response = JSONResponse({"message": "Hello, World!"})
+
+        await response(scope, receive, send)
+        assert "unpacked" == await request.json()
+
+    app = MessagePackMiddleware(
+        app, packb=lambda obj: b"packed", unpackb=lambda byt: "unpacked"
+    )
+
+    async with httpx.AsyncClient(app=app, base_url="http://testserver") as client:
+        r = await client.post(
+            "/",
+            content="Hello, World",
+            headers={
+                "content-type": "application/x-msgpack",
+                "accept": "application/x-msgpack",
+            },
+        )
+        assert "packed" == r.text
