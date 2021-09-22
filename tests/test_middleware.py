@@ -119,13 +119,13 @@ async def test_request_is_not_http() -> None:
 async def test_packb_unpackb() -> None:
     async def app(scope: Scope, receive: Receive, send: Send) -> None:
         request = Request(scope, receive)
-        response = JSONResponse({"message": "Hello, World!"})
+        assert await request.json() == {"message": "unpacked"}
 
+        response = JSONResponse({"message": "Hello, World!"})
         await response(scope, receive, send)
-        assert "unpacked" == await request.json()
 
     app = MessagePackMiddleware(
-        app, packb=lambda obj: b"packed", unpackb=lambda byt: "unpacked"
+        app, packb=lambda obj: b"packed", unpackb=lambda byt: {"message": "unpacked"}
     )
 
     async with httpx.AsyncClient(app=app, base_url="http://testserver") as client:
