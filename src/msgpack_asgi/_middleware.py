@@ -1,4 +1,5 @@
 import json
+from functools import partial
 from typing import Any, Callable
 
 import msgpack
