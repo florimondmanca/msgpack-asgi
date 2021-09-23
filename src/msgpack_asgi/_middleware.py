@@ -13,7 +13,7 @@ class MessagePackMiddleware:
         app: ASGIApp,
         *,
         packb: Callable[[Any], bytes] = msgpack.packb,
-        unpackb: Callable[[bytes], Any] = msgpack.unpackb,
+        unpackb: Callable[[bytes], Any] = partial(msgpack.unpackb, raw=False),
     ) -> None:
         self.app = app
         self.packb = packb
