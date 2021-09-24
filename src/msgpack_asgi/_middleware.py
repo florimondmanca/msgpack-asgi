@@ -6,6 +6,8 @@ import msgpack
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+_msgpack_unpackb = partial(msgpack.unpackb, raw=False)
+
 
 class MessagePackMiddleware:
     def __init__(
@@ -13,7 +15,7 @@ class MessagePackMiddleware:
         app: ASGIApp,
         *,
         packb: Callable[[Any], bytes] = msgpack.packb,
-        unpackb: Callable[[bytes], Any] = partial(msgpack.unpackb, raw=False),
+        unpackb: Callable[[bytes], Any] = _msgpack_unpackb,
     ) -> None:
         self.app = app
         self.packb = packb
