@@ -113,6 +113,30 @@ b'\x81\xa7message\xafHello, msgpack!'
 
 That's all there is to it! You can now go reduce the size of your payloads.
 
+## Advanced usage
+
+### Custom implementations
+
+`msgpack-asgi` supports customizing the default encoding/decoding implementation. This is useful for fine-tuning application performance via an alternative msgpack implementation for encoding, decoding, or both.
+
+To do so, use the following arguments:
+
+* `packb` - _(Optional, type: `(obj: Any) -> bytes`, default: `msgpack.packb`)_ - Used to encode outgoing data.
+* `unpackb` - _(Optional, type: `(data: bytes) -> Any`, default: `msgpack.unpackb`)_ - Used to decode incoming data.
+
+For example, to use the [`ormsgpack`](https://pypi.org/project/ormsgpack/) library for encoding:
+
+```python
+import ormsgpack  # Installed separately.
+from msgpack_asgi import MessagePackMiddleware
+
+def packb(obj):
+    option = ...  # See `ormsgpack` options.
+    return ormsgpack.packb(obj, option=option)
+
+app = MessagePackMiddleware(..., packb=packb)
+```
+
 ## Limitations
 
 `msgpack-asgi` does not support request or response streaming. This is because the full request and response body content has to be loaded in memory before it can be re-encoded.
