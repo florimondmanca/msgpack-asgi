@@ -50,7 +50,7 @@ class _MessagePackResponder:
         self.started = False
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        headers = Headers(scope=scope)
+        headers = MutableHeaders(scope=scope)
         self.should_decode_from_msgpack_to_json = (
             "application/x-msgpack" in headers.get("content-type", "")
         )
@@ -61,6 +61,14 @@ class _MessagePackResponder:
         )
         self.receive = receive
         self.send = send
+
+        if self.should_decode_from_msgpack_to_json:
+            # We're going to present JSON content to the application,
+            # so rewrite `Content-Type` for consistency and compliance
+            # with possible downstream security checks in some frameworks.
+            # See: https://github.com/florimondmanca/msgpack-asgi/issues/23
+            headers["content-type"] = "application/json"
+
         await self.app(scope, self.receive_with_msgpack, self.send_with_msgpack)
 
     async def receive_with_msgpack(self) -> Message:
