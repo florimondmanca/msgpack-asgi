@@ -1,8 +1,8 @@
 #!/bin/sh -e
 
-export PREFIX=""
+export BIN=""
 if [ -d 'venv' ] ; then
-    export PREFIX="venv/bin/"
+    export BIN="venv/bin/"
 fi
 
 if [ -z $CI ]; then
@@ -10,4 +10,4 @@ if [ -z $CI ]; then
 fi
 
 set -x
-${PREFIX}pytest $@
+${BIN}pytest $@
