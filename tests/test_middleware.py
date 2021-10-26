@@ -30,7 +30,7 @@ async def test_msgpack_request() -> None:
             "/", content=body, headers={"content-type": "application/x-msgpack"}
         )
         assert r.status_code == 200
-        assert r.text == "content_type='application/x-msgpack' message='Hello, world!'"
+        assert r.text == "content_type='application/json' message='Hello, world!'"
 
 
 @pytest.mark.asyncio
@@ -38,8 +38,7 @@ async def test_non_msgpack_request() -> None:
     async def app(scope: Scope, receive: Receive, send: Send) -> None:
         request = Request(scope, receive=receive)
         content_type = request.headers["content-type"]
-        data = await request.json()
-        message = data["message"]
+        message = (await request.body()).decode()
         text = f"content_type={content_type!r} message={message!r}"
 
         response = PlainTextResponse(text)
@@ -48,9 +47,13 @@ async def test_non_msgpack_request() -> None:
     app = MessagePackMiddleware(app)
 
     async with httpx.AsyncClient(app=app, base_url="http://testserver") as client:
-        r = await client.post("/", json={"message": "Hello, world!"})
+        r = await client.post(
+            "/",
+            content="Hello, world!",
+            headers={"content-type": "text/plain"},
+        )
         assert r.status_code == 200
-        assert r.text == "content_type='application/json' message='Hello, world!'"
+        assert r.text == "content_type='text/plain' message='Hello, world!'"
 
 
 @pytest.mark.asyncio

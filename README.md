@@ -147,7 +147,7 @@ app = MessagePackMiddleware(..., packb=packb)
 
 An ASGI application wrapped around `MessagePackMiddleware` will perform automatic content negotiation based on the client's capabilities. More precisely:
 
-- If the client sends MessagePack-encoded data with the `application/x-msgpack` content type, `msgpack-asgi` will automatically re-encode it to JSON for your application to consume.
+- If the client sends MessagePack-encoded data with the `application/x-msgpack` content type, `msgpack-asgi` will automatically re-encode the body to JSON and re-write the request `Content-Type` to `application/json` for your application to consume. (Note: this means applications will not be able to distinguish between MessagePack and JSON client requests.)
 - If the client sent the `Accept: application/x-msgpack` header, `msgpack-asgi` will automatically re-encode any JSON response data to MessagePack for the client to consume.
 
 (In other cases, `msgpack-asgi` won't intervene at all.)
