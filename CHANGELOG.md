@@ -4,7 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## 1.0.0 - 2020-26-03
+## 1.1.0 - 2021-10-26
+
+### Added
+
+- Support custom encoding/decoding implementation via the `packb=...` and `unpackb=...` optional parameters, allowing the use of alternative msgpack libraries. (Pull #20)
+
+### Fixed
+
+- Properly re-write request `Content-Type` to `application/json`. (Pull #24)
+
+## 1.0.0 - 2020-03-26
 
 _First production/stable release._
 
