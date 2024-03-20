@@ -6,7 +6,7 @@ wheel
 
 # Tooling.
 autoflake
-black==21.9b0
+black==24.3.0
 flake8
 flake8-bugbear
 flake8-comprehensions
