@@ -1,19 +1,14 @@
 -e .
 
-# Packaging.
-twine
-wheel
-
-# Tooling.
-autoflake
-black==21.9b0
-flake8
-flake8-bugbear
-flake8-comprehensions
-isort==5.*
-httpx==0.19.*
-mypy
-pytest
-pytest-asyncio
+# Tooling and tests.
+black==25.1.0
+httpx==0.28.1
+mypy==1.16.1
+pytest==8.4.1
+pytest-asyncio==1.0.0
 pytest-cov
-seed-isort-config
+ruff==0.12.2
+starlette==0.47.1
+
+# Releasing.
+twine

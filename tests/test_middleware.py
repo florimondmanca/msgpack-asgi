@@ -3,10 +3,16 @@ import msgpack
 import pytest
 from starlette.requests import Request
 from starlette.responses import JSONResponse, PlainTextResponse, Response
-from starlette.types import Receive, Scope, Send
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from msgpack_asgi import MessagePackMiddleware
 from tests.utils import mock_receive, mock_send
+
+
+def _make_client(app: ASGIApp) -> httpx.AsyncClient:
+    return httpx.AsyncClient(
+        transport=httpx.ASGITransport(app), base_url="http://testserver"
+    )
 
 
 @pytest.mark.asyncio
@@ -23,7 +29,7 @@ async def test_msgpack_request() -> None:
 
     app = MessagePackMiddleware(app)
 
-    async with httpx.AsyncClient(app=app, base_url="http://testserver") as client:
+    async with _make_client(app) as client:
         content = {"message": "Hello, world!"}
         body = msgpack.packb(content)
         r = await client.post(
@@ -46,7 +52,7 @@ async def test_non_msgpack_request() -> None:
 
     app = MessagePackMiddleware(app)
 
-    async with httpx.AsyncClient(app=app, base_url="http://testserver") as client:
+    async with _make_client(app) as client:
         r = await client.post(
             "/",
             content="Hello, world!",
@@ -60,7 +66,7 @@ async def test_non_msgpack_request() -> None:
 async def test_msgpack_accepted() -> None:
     app = MessagePackMiddleware(JSONResponse({"message": "Hello, world!"}))
 
-    async with httpx.AsyncClient(app=app, base_url="http://testserver") as client:
+    async with _make_client(app) as client:
         r = await client.get("/", headers={"accept": "application/x-msgpack"})
         assert r.status_code == 200
         assert r.headers["content-type"] == "application/x-msgpack"
@@ -73,7 +79,7 @@ async def test_msgpack_accepted() -> None:
 async def test_msgpack_accepted_but_response_is_not_json() -> None:
     app = MessagePackMiddleware(PlainTextResponse("Hello, world!"))
 
-    async with httpx.AsyncClient(app=app, base_url="http://testserver") as client:
+    async with _make_client(app) as client:
         r = await client.get("/", headers={"accept": "application/x-msgpack"})
         assert r.status_code == 200
         assert r.headers["content-type"] == "text/plain; charset=utf-8"
@@ -86,7 +92,7 @@ async def test_msgpack_accepted_and_response_is_already_msgpack() -> None:
     response = Response(data, media_type="application/x-msgpack")
     app = MessagePackMiddleware(response)
 
-    async with httpx.AsyncClient(app=app, base_url="http://testserver") as client:
+    async with _make_client(app) as client:
         r = await client.get("/", headers={"accept": "application/x-msgpack"})
         assert r.status_code == 200
         assert r.headers["content-type"] == "application/x-msgpack"
@@ -99,7 +105,7 @@ async def test_msgpack_accepted_and_response_is_already_msgpack() -> None:
 async def test_msgpack_not_accepted() -> None:
     app = MessagePackMiddleware(JSONResponse({"message": "Hello, world!"}))
 
-    async with httpx.AsyncClient(app=app, base_url="http://testserver") as client:
+    async with _make_client(app) as client:
         r = await client.get("/")
         assert r.status_code == 200
         assert r.headers["content-type"] == "application/json"
@@ -131,7 +137,7 @@ async def test_packb_unpackb() -> None:
         app, packb=lambda obj: b"packed", unpackb=lambda byt: {"message": "unpacked"}
     )
 
-    async with httpx.AsyncClient(app=app, base_url="http://testserver") as client:
+    async with _make_client(app) as client:
         r = await client.post(
             "/",
             content="Hello, World",

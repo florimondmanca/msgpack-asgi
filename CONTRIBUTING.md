@@ -6,30 +6,30 @@ Here are a few tips for getting started.
 
 ## Quickstart
 
-The project workflow is managed using shell scripts stored in `scripts/`.
+The project workflow is managed using `make`.
 
 First, install dependencies:
 
-```
-scripts/install
+```bash
+make install
 ```
 
 To run the test suite, use:
 
-```
-scripts/test
+```bash
+make test
 ```
 
 To run code formatting:
 
-```
-scripts/lint
+```bash
+make format
 ```
 
 To run code checks alone:
 
-```
-scripts/check
+```bash
+make check
 ```
 
 ## Releasing
