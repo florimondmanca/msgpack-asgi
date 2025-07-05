@@ -1,6 +1,6 @@
 # msgpack-asgi
 
-[![Build Status](https://dev.azure.com/florimondmanca/public/_apis/build/status/florimondmanca.msgpack-asgi?branchName=master)](https://dev.azure.com/florimondmanca/public/_build/latest?definitionId=5&branchName=master)
+[![Build Status](https://dev.azure.com/florimondmanca/public/_apis/build/status/florimondmanca.msgpack-asgi?branchName=master)](https://dev.azure.com/florimondmanca/public/_build?definitionId=5)
 [![Coverage](https://codecov.io/gh/florimondmanca/msgpack-asgi/branch/master/graph/badge.svg)](https://codecov.io/gh/florimondmanca/msgpack-asgi)
 [![Package version](https://badge.fury.io/py/msgpack-asgi.svg)](https://pypi.org/project/msgpack-asgi)
 
