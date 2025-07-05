@@ -33,7 +33,7 @@ async def test_msgpack_request() -> None:
         content = {"message": "Hello, world!"}
         body = msgpack.packb(content)
         r = await client.post(
-            "/", content=body, headers={"content-type": "application/x-msgpack"}
+            "/", content=body, headers={"content-type": "application/vnd.msgpack"}
         )
         assert r.status_code == 200
         assert r.text == "content_type='application/json' message='Hello, world!'"
@@ -67,9 +67,9 @@ async def test_msgpack_accepted() -> None:
     app = MessagePackMiddleware(JSONResponse({"message": "Hello, world!"}))
 
     async with _make_client(app) as client:
-        r = await client.get("/", headers={"accept": "application/x-msgpack"})
+        r = await client.get("/", headers={"accept": "application/vnd.msgpack"})
         assert r.status_code == 200
-        assert r.headers["content-type"] == "application/x-msgpack"
+        assert r.headers["content-type"] == "application/vnd.msgpack"
         expected_data = {"message": "Hello, world!"}
         assert int(r.headers["content-length"]) == len(msgpack.packb(expected_data))
         assert msgpack.unpackb(r.content, raw=False) == expected_data
@@ -80,7 +80,7 @@ async def test_msgpack_accepted_but_response_is_not_json() -> None:
     app = MessagePackMiddleware(PlainTextResponse("Hello, world!"))
 
     async with _make_client(app) as client:
-        r = await client.get("/", headers={"accept": "application/x-msgpack"})
+        r = await client.get("/", headers={"accept": "application/vnd.msgpack"})
         assert r.status_code == 200
         assert r.headers["content-type"] == "text/plain; charset=utf-8"
         assert r.text == "Hello, world!"
@@ -89,13 +89,13 @@ async def test_msgpack_accepted_but_response_is_not_json() -> None:
 @pytest.mark.asyncio
 async def test_msgpack_accepted_and_response_is_already_msgpack() -> None:
     data = msgpack.packb({"message": "Hello, world!"})
-    response = Response(data, media_type="application/x-msgpack")
+    response = Response(data, media_type="application/vnd.msgpack")
     app = MessagePackMiddleware(response)
 
     async with _make_client(app) as client:
-        r = await client.get("/", headers={"accept": "application/x-msgpack"})
+        r = await client.get("/", headers={"accept": "application/vnd.msgpack"})
         assert r.status_code == 200
-        assert r.headers["content-type"] == "application/x-msgpack"
+        assert r.headers["content-type"] == "application/vnd.msgpack"
         expected_data = {"message": "Hello, world!"}
         assert int(r.headers["content-length"]) == len(msgpack.packb(expected_data))
         assert msgpack.unpackb(r.content, raw=False) == expected_data
@@ -134,7 +134,7 @@ async def test_packb_unpackb() -> None:
         await response(scope, receive, send)
 
     app = MessagePackMiddleware(
-        app, packb=lambda obj: b"packed", unpackb=lambda byt: {"message": "unpacked"}
+        app, packb=lambda _: b"packed", unpackb=lambda _: {"message": "unpacked"}
     )
 
     async with _make_client(app) as client:
@@ -142,8 +142,42 @@ async def test_packb_unpackb() -> None:
             "/",
             content="Hello, World",
             headers={
+                "content-type": "application/vnd.msgpack",
+                "accept": "application/vnd.msgpack",
+            },
+        )
+        assert "packed" == r.text
+
+
+@pytest.mark.asyncio
+async def test_custom_content_type() -> None:
+    async def app(scope: Scope, receive: Receive, send: Send) -> None:
+        request = Request(scope, receive=receive)
+        content_type = request.headers["content-type"]
+        data = await request.json()
+        message = data["message"]
+        text = f"content_type={content_type!r} message={message!r}"
+
+        response = JSONResponse({"text": text})
+        await response(scope, receive, send)
+
+    app = MessagePackMiddleware(app, content_type="application/x-msgpack")
+
+    async with _make_client(app) as client:
+        content = {"message": "Hello, world!"}
+        body = msgpack.packb(content)
+        r = await client.post(
+            "/",
+            content=body,
+            headers={
                 "content-type": "application/x-msgpack",
                 "accept": "application/x-msgpack",
             },
         )
-        assert "packed" == r.text
+        assert r.headers["content-type"] == "application/x-msgpack"
+        assert r.status_code == 200
+        expected_data = {
+            "text": "content_type='application/json' message='Hello, world!'"
+        }
+        assert int(r.headers["content-length"]) == len(msgpack.packb(expected_data))
+        assert msgpack.unpackb(r.content, raw=False) == expected_data

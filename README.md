@@ -67,7 +67,7 @@ uvicorn app:app
 Now, let's make a request that accepts MessagePack data in response:
 
 ```bash
-curl -i http://localhost:8000 -H "Accept: application/x-msgpack"
+curl -i http://localhost:8000 -H "Accept: application/vnd.msgpack"
 ```
 
 You should get the following output:
@@ -77,7 +77,7 @@ HTTP/1.1 200 OK
 date: Fri, 01 Nov 2019 17:40:14 GMT
 server: uvicorn
 content-length: 25
-content-type: application/x-msgpack
+content-type: application/vnd.msgpack
 
 ��message�Hello, msgpack!
 ```
@@ -90,7 +90,7 @@ We can make sure the response contains valid MessagePack data by making the requ
 >>> import requests
 >>> import msgpack
 >>> url = "http://localhost:8000"
->>> headers = {"accept": "application/x-msgpack"}
+>>> headers = {"accept": "application/vnd.msgpack"}
 >>> r = requests.get(url, headers=headers)
 >>> r.content
 b'\x81\xa7message\xafHello, msgpack!'
@@ -105,7 +105,7 @@ b'\x81\xa7message\xafHello, msgpack!'
 >>> import msgpack
 >>> url = "http://localhost:8000"
 >>> data = msgpack.packb({"message": "Hi, there!"})
->>> headers = {"content-type": "application/x-msgpack"}
+>>> headers = {"content-type": "application/vnd.msgpack"}
 >>> r = requests.post(url, data=data, headers=headers)
 >>> r.json()
 {'data': {'message': 'Hi, there!'}}
@@ -147,10 +147,33 @@ app = MessagePackMiddleware(..., packb=packb)
 
 An ASGI application wrapped around `MessagePackMiddleware` will perform automatic content negotiation based on the client's capabilities. More precisely:
 
-- If the client sends MessagePack-encoded data with the `application/x-msgpack` content type, `msgpack-asgi` will automatically re-encode the body to JSON and re-write the request `Content-Type` to `application/json` for your application to consume. (Note: this means applications will not be able to distinguish between MessagePack and JSON client requests.)
-- If the client sent the `Accept: application/x-msgpack` header, `msgpack-asgi` will automatically re-encode any JSON response data to MessagePack for the client to consume.
+- If the client sends MessagePack-encoded data with the `application/vnd.msgpack` content type, `msgpack-asgi` will automatically re-encode the body to JSON and re-write the request `Content-Type` to `application/json` for your application to consume. (Note: this means applications will not be able to distinguish between MessagePack and JSON client requests.)
+- If the client sent the `Accept: application/vnd.msgpack` header, `msgpack-asgi` will automatically re-encode any JSON response data to MessagePack for the client to consume.
 
-(In other cases, `msgpack-asgi` won't intervene at all.)
+(In other cases, `msgpack-asgi` won't intervene at all. NOTE: the content type to look for can be customized -- see API Reference below.)
+
+## API Referece
+
+### `MessagePackMiddleware`
+
+**Signature**:
+
+```python
+MessagePackMiddleware(
+    app,
+    *,
+    packb=msgpack.packb,
+    unpackb=msgpack.packb,
+    content_type="application/vnd.msgpack"
+)
+```
+
+**Parameters described**:
+
+* `app`: an ASGI app to add msgpack support to
+* _(Optional)_ `packb` - callable: msgpack encoding function. Defaults to `msgpack.packb`.
+* _(Optional)_ `unpackb` - callable: msgpack decoding function. Defaults to `msgpack.unpackb`.
+* _(Optional)_ _(New in 2.0.0)_ `content_type` - str: the content type (aka MIME type) to use for detecting incoming msgpack requests or sending msgpack responses. Defaults to the IANA-registered `application/vnd.msgpack` MIME type. Use this option when working with systems that use older non-standardcontent types such as `application/x-msgpack`.
 
 ## License
 
