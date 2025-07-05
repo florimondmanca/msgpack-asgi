@@ -16,8 +16,8 @@ check:
 	${bin}mypy ${pysources}
 
 format:
-	${bin}ruff check --fix ${pysources}
 	${bin}black ${pysources}
+	${bin}ruff check --fix ${pysources}
 
 build:
 	${bin}python -m build
