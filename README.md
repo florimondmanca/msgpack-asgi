@@ -10,7 +10,7 @@
 app.add_middleware(MessagePackMiddleware)
 ```
 
-_(You may want to adapt this snippet to your framework-specific middleware API.)_
+_(Adapt this snippet to your framework-specific middleware API.)_
 
 This gives you the bandwitdth usage reduction benefits of MessagePack without having to change existing code.
 
@@ -21,8 +21,10 @@ This gives you the bandwitdth usage reduction benefits of MessagePack without ha
 Install with pip:
 
 ```bash
-pip install "msgpack-asgi==1.*"
+pip install "msgpack-asgi==2.*"
 ```
+
+**Be sure to pin to the latest major version**, as above. Breaking changes may occur across major versions. If so, details on migration steps will be provided in CHANGELOG.md.
 
 ## Quickstart
 
@@ -171,9 +173,9 @@ MessagePackMiddleware(
 **Parameters described**:
 
 * `app`: an ASGI app to add msgpack support to
-* _(Optional)_ `packb` - callable: msgpack encoding function. Defaults to `msgpack.packb`.
-* _(Optional)_ `unpackb` - callable: msgpack decoding function. Defaults to `msgpack.unpackb`.
-* _(Optional)_ _(New in 2.0.0)_ `content_type` - str: the content type (aka MIME type) to use for detecting incoming msgpack requests or sending msgpack responses. Defaults to the IANA-registered `application/vnd.msgpack` MIME type. Use this option when working with systems that use older non-standardcontent types such as `application/x-msgpack`.
+* `packb` - callable (Optional, Added in 1.1.0): msgpack encoding function. Defaults to `msgpack.packb`.
+* `unpackb` - callable _(Optional, Added in 1.1.0)_: msgpack decoding function. Defaults to `msgpack.unpackb`.
+* `content_type` - str _(Optional, Added in 2.0.0)_: the content type (_a.k.a_ MIME type) to use for detecting incoming msgpack requests or sending msgpack responses. Defaults to the IANA-registered `application/vnd.msgpack` MIME type. Use this option when working with older systems that send or expect e.g. `application/x-msgpack`.
 
 ## License
 
