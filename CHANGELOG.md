@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2.0.0 - 2025-07-05
+
+_This release includes a potentially breaking change and updates the compatible Python versions._
+
+### Changed
+
+* (**BREAKING**) Use the [IANA-registered](https://www.iana.org/assignments/media-types/application/vnd.msgpack) `application/vnd.msgpack` MIME type, instead of `application/x-msgpack` previously.
+  * This impacts both the detection of msgpack-acceptable requests, as well as the MIME type used for encoding responses.
+  * To continue using `application/x-msgpack` or to use any other MIME type suitable for your needs, use the new `content_type` argument on `MessagePackMiddleware`. (Pull #30)
+
+### Removed
+
+* Drop official support for Python 3.6, 3.7 and 3.8 which have reached EOL. (It is likely this version remains compatible in practice, but no further maintenance will be provided for these Python versions.) (Pull #29)
+
+### Added
+
+* Add official support for Python 3.9 through 3.13. (Pull #29)
+
 ## 1.1.0 - 2021-10-26
 
 ### Added
