@@ -4,7 +4,7 @@ resources:
       type: github
       endpoint: github
       name: florimondmanca/azure-pipelines-templates
-      ref: refs/tags/6.3
+      ref: refs/tags/6.4.2
 
 trigger:
   - master
@@ -19,6 +19,7 @@ variables:
   - name: PIP_CACHE_DIR
     value: $(Pipeline.Workspace)/.cache/pip
   - group: pypi-credentials
+  - group: codecov-credentials
 
 stages:
   - stage: test
@@ -33,6 +34,7 @@ stages:
             py39:
             py313:
               coverage: true
+              codecovToken: $(codecovToken)
 
   - stage: publish
     condition: startsWith(variables['Build.SourceBranch'], 'refs/tags/')
