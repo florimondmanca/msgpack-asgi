@@ -1,12 +1,82 @@
+import io
 import json
 from functools import partial
-from typing import Any, Callable, cast
+from typing import Any, Callable, Type, cast
 
 import msgpack
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
+from typing_extensions import Protocol
 
 _msgpack_unpackb = partial(msgpack.unpackb, raw=False)
+
+
+def _std_json_loads(data: bytes) -> Any:
+    return json.loads(data)
+
+
+def _std_json_dumps(obj: Any) -> bytes:
+    return json.dumps(obj).encode()
+
+
+class _StreamingUnpacker(Protocol):
+    def __init__(
+        self, *, unpackb: Callable[[bytes], Any], dumps: Callable[[Any], bytes]
+    ) -> None: ...
+    def feed(self, data: bytes) -> None: ...
+    def decode(self) -> Any: ...
+    def pack(self) -> bytes: ...
+
+
+class _StreamingPacker(Protocol):
+    def __init__(
+        self, *, packb: Callable[[Any], bytes], loads: Callable[[bytes], Any]
+    ) -> None: ...
+    def feed(self, obj: Any) -> None: ...
+    def decode(self) -> Any: ...
+    def pack(self) -> bytes: ...
+
+
+class StreamingJsonPacker:
+    def __init__(
+        self, *, packb: Callable[[Any], bytes], loads: Callable[[bytes], Any]
+    ) -> None:
+        self._packb = packb
+        self._loads = loads
+        self._buf = io.BytesIO()
+
+    def feed(self, data: bytes) -> None:
+        self._buf.write(data)
+
+    def decode(self) -> Any:
+        self._buf.seek(0)
+        data = self._buf.getvalue()
+        self._buf = io.BytesIO()
+        return self._loads(data)
+
+    def pack(self) -> bytes:
+        return self._packb(self.decode())
+
+
+class StreamingJsonUnpacker:
+    def __init__(
+        self, *, unpackb: Callable[[bytes], Any], dumps: Callable[[Any], bytes]
+    ) -> None:
+        self._unpackb = unpackb
+        self._dumps = dumps
+        self._buf = io.BytesIO()
+
+    def feed(self, data: bytes) -> None:
+        self._buf.write(data)
+
+    def decode(self) -> Any:
+        self._buf.seek(0)
+        data = self._buf.getvalue()
+        self._buf = io.BytesIO()
+        return self._unpackb(data)
+
+    def pack(self) -> bytes:
+        return self._dumps(self.decode())
 
 
 class MessagePackMiddleware:
@@ -21,10 +91,18 @@ class MessagePackMiddleware:
         # Allow customization to support older implementations, such as those using
         # application/x-msgpack.
         content_type: str = "application/vnd.msgpack",
+        unpacker_cls: Type[_StreamingUnpacker] = StreamingJsonUnpacker,
+        packer_cls: Type[_StreamingPacker] = StreamingJsonPacker,
+        loads: Callable[[bytes], Any] = _std_json_loads,
+        dumps: Callable[[Any], bytes] = _std_json_dumps,
     ) -> None:
         self._app = app
         self._packb = packb
         self._unpackb = unpackb
+        self._loads = loads
+        self._dumps = dumps
+        self._packer_cls = packer_cls
+        self._unpacker_cls = unpacker_cls
         self._content_type = content_type
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
@@ -33,6 +111,10 @@ class MessagePackMiddleware:
                 self._app,
                 packb=self._packb,
                 unpackb=self._unpackb,
+                loads=self._loads,
+                dumps=self._dumps,
+                packer_cls=self._packer_cls,
+                unpacker_cls=self._unpacker_cls,
                 content_type=self._content_type,
             )
             await responder(scope, receive, send)
@@ -47,11 +129,15 @@ class _MessagePackResponder:
         *,
         packb: Callable[[Any], bytes],
         unpackb: Callable[[bytes], Any],
+        loads: Callable[[bytes], Any],
+        dumps: Callable[[Any], bytes],
+        packer_cls: Type[_StreamingPacker],
+        unpacker_cls: Type[_StreamingUnpacker],
         content_type: str,
     ) -> None:
         self._app = app
-        self._packb = packb
-        self._unpackb = unpackb
+        self._packer = packer_cls(packb=packb, loads=loads)
+        self._unpacker = unpacker_cls(unpackb=unpackb, dumps=dumps)
         self._content_type = content_type
         self._should_decode_from_msgpack_to_json = False
         self._should_encode_from_json_to_msgpack = False
@@ -87,24 +173,17 @@ class _MessagePackResponder:
 
         if not self._should_decode_from_msgpack_to_json:
             return message
-
-        assert message["type"] == "http.request"
+        if message["type"] != "http.request":
+            return message
 
         body = message["body"]
+        self._unpacker.feed(body)
+        message["body"] = b""
         more_body = message.get("more_body", False)
         if more_body:
-            # Some implementations (e.g. HTTPX) may send one more empty-body message.
-            # Make sure they don't send one that contains a body, or it means
-            # that clients attempt to stream the request body.
-            message = await self._receive()
-            if message["body"] != b"":  # pragma: no cover
-                raise NotImplementedError(
-                    "Streaming the request body isn't supported yet"
-                )
+            return message
 
-        obj = self._unpackb(body)
-        message["body"] = json.dumps(obj).encode()
-
+        message["body"] = self._unpacker.pack()
         return message
 
     async def send_with_msgpack(self, message: Message) -> None:
@@ -122,7 +201,7 @@ class _MessagePackResponder:
                 return
 
             # Don't send the initial message until we've determined how to
-            # modify the ougoging headers correctly.
+            # modify the outgoing headers correctly.
             self.initial_message = message
 
         elif message["type"] == "http.response.body":
@@ -130,12 +209,12 @@ class _MessagePackResponder:
 
             body = message.get("body", b"")
             more_body = message.get("more_body", False)
-            if more_body:  # pragma: no cover
-                raise NotImplementedError(
-                    "Streaming the response body isn't supported yet"
-                )
+            self._packer.feed(body)
 
-            body = self._packb(json.loads(body))
+            if more_body:
+                return
+
+            body = self._packer.pack()
 
             headers = MutableHeaders(raw=self.initial_message["headers"])
             headers["Content-Type"] = self._content_type
