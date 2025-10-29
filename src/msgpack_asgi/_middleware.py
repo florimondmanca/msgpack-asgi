@@ -1,82 +1,65 @@
 import io
 import json
 from functools import partial
-from typing import Any, Callable, Type, cast
+from typing import Any, Callable, cast
 
 import msgpack
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
-from typing_extensions import Protocol
+
+_NAIVE_STREAMING_ERROR = (
+    "Streaming msgpack requests not supported. To allow naive (buffered)"
+    " streaming, set allow_naive_streaming=True in the middleware."
+)
 
 _msgpack_unpackb = partial(msgpack.unpackb, raw=False)
 
 
-def _std_json_loads(data: bytes) -> Any:
-    return json.loads(data)
+def _std_json_dumps(*args: Any, **kwargs: Any) -> bytes:
+    return json.dumps(*args, **kwargs).encode()
 
 
-def _std_json_dumps(obj: Any) -> bytes:
-    return json.dumps(obj).encode()
-
-
-class _StreamingUnpacker(Protocol):
+class _BufferedTranscoder:
     def __init__(
-        self, *, unpackb: Callable[[bytes], Any], dumps: Callable[[Any], bytes]
-    ) -> None: ...
-    def feed(self, data: bytes) -> None: ...
-    def decode(self) -> Any: ...
-    def pack(self) -> bytes: ...
-
-
-class _StreamingPacker(Protocol):
-    def __init__(
-        self, *, packb: Callable[[Any], bytes], loads: Callable[[bytes], Any]
-    ) -> None: ...
-    def feed(self, obj: Any) -> None: ...
-    def decode(self) -> Any: ...
-    def pack(self) -> bytes: ...
-
-
-class StreamingJsonPacker:
-    def __init__(
-        self, *, packb: Callable[[Any], bytes], loads: Callable[[bytes], Any]
+        self,
+        *,
+        encode: Callable[[Any], bytes],
+        decode: Callable[[bytes], Any],
+        allow_buffering: bool,
     ) -> None:
-        self._packb = packb
-        self._loads = loads
+        self._encode = encode
+        self._decode = decode
         self._buf = io.BytesIO()
+        self._allow_buffering = allow_buffering
 
     def feed(self, data: bytes) -> None:
+        more_data = len(data) > 0
+        can_accept = self._allow_buffering or self._buf.tell() == 0
+        if not can_accept and more_data:
+            raise NotImplementedError(_NAIVE_STREAMING_ERROR)
         self._buf.write(data)
 
-    def decode(self) -> Any:
-        self._buf.seek(0)
+    def _decode_buffer(self) -> Any:
         data = self._buf.getvalue()
         self._buf = io.BytesIO()
-        return self._loads(data)
+        return self._decode(data)
 
-    def pack(self) -> bytes:
-        return self._packb(self.decode())
+    def transcode(self) -> bytes:
+        return self._encode(self._decode_buffer())
 
 
-class StreamingJsonUnpacker:
-    def __init__(
-        self, *, unpackb: Callable[[bytes], Any], dumps: Callable[[Any], bytes]
-    ) -> None:
-        self._unpackb = unpackb
-        self._dumps = dumps
-        self._buf = io.BytesIO()
+class BufferedJsonPacker(_BufferedTranscoder):
+    def __init__(self, *, packb: Callable[[Any], bytes], allow_buffering: bool) -> None:
+        super().__init__(
+            encode=packb, decode=json.loads, allow_buffering=allow_buffering
+        )
 
-    def feed(self, data: bytes) -> None:
-        self._buf.write(data)
 
-    def decode(self) -> Any:
-        self._buf.seek(0)
-        data = self._buf.getvalue()
-        self._buf = io.BytesIO()
-        return self._unpackb(data)
-
-    def pack(self) -> bytes:
-        return self._dumps(self.decode())
+class BufferedJsonUnpacker(_BufferedTranscoder):
+    def __init__(self, unpackb: Callable[[bytes], Any], allow_buffering: bool) -> None:
+        super().__init__(
+            encode=_std_json_dumps, decode=unpackb, allow_buffering=allow_buffering
+        )
 
 
 class MessagePackMiddleware:
@@ -91,19 +74,13 @@ class MessagePackMiddleware:
         # Allow customization to support older implementations, such as those using
         # application/x-msgpack.
         content_type: str = "application/vnd.msgpack",
-        unpacker_cls: Type[_StreamingUnpacker] = StreamingJsonUnpacker,
-        packer_cls: Type[_StreamingPacker] = StreamingJsonPacker,
-        loads: Callable[[bytes], Any] = _std_json_loads,
-        dumps: Callable[[Any], bytes] = _std_json_dumps,
+        allow_naive_streaming: bool = False,
     ) -> None:
         self._app = app
         self._packb = packb
         self._unpackb = unpackb
-        self._loads = loads
-        self._dumps = dumps
-        self._packer_cls = packer_cls
-        self._unpacker_cls = unpacker_cls
         self._content_type = content_type
+        self._allow_naive_streaming = allow_naive_streaming
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] == "http":
@@ -111,11 +88,8 @@ class MessagePackMiddleware:
                 self._app,
                 packb=self._packb,
                 unpackb=self._unpackb,
-                loads=self._loads,
-                dumps=self._dumps,
-                packer_cls=self._packer_cls,
-                unpacker_cls=self._unpacker_cls,
                 content_type=self._content_type,
+                allow_naive_streaming=self._allow_naive_streaming,
             )
             await responder(scope, receive, send)
             return
@@ -129,15 +103,16 @@ class _MessagePackResponder:
         *,
         packb: Callable[[Any], bytes],
         unpackb: Callable[[bytes], Any],
-        loads: Callable[[bytes], Any],
-        dumps: Callable[[Any], bytes],
-        packer_cls: Type[_StreamingPacker],
-        unpacker_cls: Type[_StreamingUnpacker],
+        allow_naive_streaming: bool,
         content_type: str,
     ) -> None:
         self._app = app
-        self._packer = packer_cls(packb=packb, loads=loads)
-        self._unpacker = unpacker_cls(unpackb=unpackb, dumps=dumps)
+        self._packer = BufferedJsonPacker(
+            packb=packb, allow_buffering=allow_naive_streaming
+        )
+        self._unpacker = BufferedJsonUnpacker(
+            unpackb=unpackb, allow_buffering=allow_naive_streaming
+        )
         self._content_type = content_type
         self._should_decode_from_msgpack_to_json = False
         self._should_encode_from_json_to_msgpack = False
@@ -145,6 +120,7 @@ class _MessagePackResponder:
         self._send: Send = unattached_send
         self._initial_message: Message = {}
         self._started = False
+        self._allow_naive_streaming = allow_naive_streaming
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         headers = MutableHeaders(scope=scope)
@@ -183,7 +159,7 @@ class _MessagePackResponder:
         if more_body:
             return message
 
-        message["body"] = self._unpacker.pack()
+        message["body"] = self._unpacker.transcode()
         return message
 
     async def send_with_msgpack(self, message: Message) -> None:
@@ -214,7 +190,7 @@ class _MessagePackResponder:
             if more_body:
                 return
 
-            body = self._packer.pack()
+            body = self._packer.transcode()
 
             headers = MutableHeaders(raw=self.initial_message["headers"])
             headers["Content-Type"] = self._content_type
