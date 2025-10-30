@@ -242,9 +242,11 @@ async def test_streaming_opt_in() -> None:
         for i in range(0, len(request_content), chunk_size):
             yield request_content[i : min(i + chunk_size, len(request_content))]
 
-    async def app(scope: Scope, receive: Receive, _send: Send) -> None:
+    async def app(scope: Scope, receive: Receive, send: Send) -> None:
         request = Request(scope, receive)
         await request.json()
+        response = JSONResponse({"message": "Hello, World!"})  # pragma: no cover
+        await response(scope, receive, send)  # pragma: no cover
 
     # No argument passed
     app = MessagePackMiddleware(app)
