@@ -230,3 +230,29 @@ async def test_buffered_streaming() -> None:
 
         assert r.status_code == 200
         assert msgpack.unpackb(r.content) == {"message": "Hello, World!"}
+
+
+@pytest.mark.asyncio
+async def test_streaming_opt_in() -> None:
+    chunk_size = 8
+    request_data = {"message": "unpacked"}
+    request_content = msgpack.packb(request_data)
+
+    async def request_content_gen() -> AsyncIterator[bytes]:
+        for i in range(0, len(request_content), chunk_size):
+            yield request_content[i : min(i + chunk_size, len(request_content))]
+
+    async def app(scope: Scope, receive: Receive, _send: Send) -> None:
+        request = Request(scope, receive)
+        await request.json()
+
+    # No argument passed
+    app = MessagePackMiddleware(app)
+
+    async with _make_client(app) as client:
+        with pytest.raises(NotImplementedError):
+            _r = await client.post(
+                "/",
+                content=request_content_gen(),
+                headers={"content-type": "application/vnd.msgpack"},
+            )
