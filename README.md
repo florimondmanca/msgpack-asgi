@@ -139,9 +139,15 @@ def packb(obj):
 app = MessagePackMiddleware(..., packb=packb)
 ```
 
-## Limitations
+## Streaming requests or responses
 
-`msgpack-asgi` does not support request or response streaming. This is because the full request and response body content has to be loaded in memory before it can be re-encoded.
+By default `msgpack-asgi` will raise a `NotImplementedError` if encountering a streaming request or response body.
+
+This is because the full request and response body content has to be loaded in memory before it can be re-encoded.
+
+You can opt into naive (buffered) request or response streaming by passing `allow_naive_streaming=True` to the middleware.
+
+Be aware that this will induce large RAM usage for large request or response bodies. You may want to look into setting or tweaking request or response limits on your ASGI or frontend web server.
 
 ## How it works
 
@@ -176,6 +182,7 @@ MessagePackMiddleware(
 * `packb` - callable (Optional, Added in 1.1.0): msgpack encoding function. Defaults to `msgpack.packb`.
 * `unpackb` - callable _(Optional, Added in 1.1.0)_: msgpack decoding function. Defaults to `msgpack.unpackb`.
 * `content_type` - str _(Optional, Added in 2.0.0)_: the content type (_a.k.a_ MIME type) to use for detecting incoming msgpack requests or sending msgpack responses. Defaults to the IANA-registered `application/vnd.msgpack` MIME type. Use this option when working with older systems that send or expect e.g. `application/x-msgpack`.
+* `allow_naive_streaming` - bool _(Optional, Added in 3.0.0)_: whether to allow encoding/decoding streaming request or response body data by buffering it up into memory. Defaults to `False`.
 
 ## License
 
