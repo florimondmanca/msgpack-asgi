@@ -15,6 +15,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * Add official support for Python 3.14. (Pull #35)
 * Add naive buffered request and response streaming, opt-in via `allow_naive_streaming=True`. (Pull #33, #34)
 
+### Fixed
+
+* Fix handling of non-`http.request` ASGI messages when receiving the request (including `http.disconnect`). They are now passed through instead of raising an error. (Pull #33)
+
 ## 2.0.0 - 2025-07-05
 
 _This release includes a potentially breaking change and updates the compatible Python versions._
