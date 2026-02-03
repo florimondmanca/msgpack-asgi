@@ -26,13 +26,13 @@ stages:
     jobs:
       - template: job--python-check.yml@templates
         parameters:
-          pythonVersion: "3.13"
+          pythonVersion: "3.14"
 
       - template: job--python-test.yml@templates
         parameters:
           jobs:
-            py39:
-            py313:
+            py310:
+            py314:
               coverage: true
               codecovToken: $(codecovToken)
 
@@ -41,5 +41,5 @@ stages:
     jobs:
       - template: job--python-publish.yml@templates
         parameters:
-          pythonVersion: "3.13"
+          pythonVersion: "3.14"
           token: $(pypiToken)
