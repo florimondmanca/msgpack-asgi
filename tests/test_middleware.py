@@ -1,8 +1,16 @@
+import json
+from collections.abc import AsyncIterator
+
 import httpx
 import msgpack
 import pytest
 from starlette.requests import Request
-from starlette.responses import JSONResponse, PlainTextResponse, Response
+from starlette.responses import (
+    JSONResponse,
+    PlainTextResponse,
+    Response,
+    StreamingResponse,
+)
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from msgpack_asgi import MessagePackMiddleware
@@ -181,3 +189,72 @@ async def test_custom_content_type() -> None:
         }
         assert int(r.headers["content-length"]) == len(msgpack.packb(expected_data))
         assert msgpack.unpackb(r.content, raw=False) == expected_data
+
+
+@pytest.mark.asyncio
+async def test_buffered_streaming() -> None:
+    chunk_size = 8
+    request_data = {"message": "unpacked"}
+    request_content = msgpack.packb(request_data)
+    response_data = {"message": "Hello, World!"}
+    response_json = json.dumps(response_data).encode()
+
+    async def response_content_gen() -> AsyncIterator[bytes]:
+        for i in range(0, len(response_json), chunk_size):
+            yield response_json[i : min(i + chunk_size, len(response_json))]
+
+    async def request_content_gen() -> AsyncIterator[bytes]:
+        for i in range(0, len(request_content), chunk_size):
+            yield request_content[i : min(i + chunk_size, len(request_content))]
+
+    async def app(scope: Scope, receive: Receive, send: Send) -> None:
+        request = Request(scope, receive)
+        assert await request.json() == request_data
+
+        response = StreamingResponse(
+            content=response_content_gen(), media_type="application/json"
+        )
+        await response(scope, receive, send)
+
+    app = MessagePackMiddleware(app, allow_naive_streaming=True)
+
+    async with _make_client(app) as client:
+        r = await client.post(
+            "/",
+            content=request_content_gen(),
+            headers={
+                "content-type": "application/vnd.msgpack",
+                "accept": "application/vnd.msgpack",
+            },
+        )
+
+        assert r.status_code == 200
+        assert msgpack.unpackb(r.content) == {"message": "Hello, World!"}
+
+
+@pytest.mark.asyncio
+async def test_streaming_opt_in() -> None:
+    chunk_size = 8
+    request_data = {"message": "unpacked"}
+    request_content = msgpack.packb(request_data)
+
+    async def request_content_gen() -> AsyncIterator[bytes]:
+        for i in range(0, len(request_content), chunk_size):
+            yield request_content[i : min(i + chunk_size, len(request_content))]
+
+    async def app(scope: Scope, receive: Receive, send: Send) -> None:
+        request = Request(scope, receive)
+        await request.json()
+        response = JSONResponse({"message": "Hello, World!"})  # pragma: no cover
+        await response(scope, receive, send)  # pragma: no cover
+
+    # No argument passed
+    app = MessagePackMiddleware(app)
+
+    async with _make_client(app) as client:
+        with pytest.raises(NotImplementedError):
+            _r = await client.post(
+                "/",
+                content=request_content_gen(),
+                headers={"content-type": "application/vnd.msgpack"},
+            )
