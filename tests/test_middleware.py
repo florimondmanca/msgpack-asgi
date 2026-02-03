@@ -199,13 +199,13 @@ async def test_buffered_streaming() -> None:
     response_data = {"message": "Hello, World!"}
     response_json = json.dumps(response_data).encode()
 
-    async def response_content_gen() -> AsyncIterator[bytes]:
-        for i in range(0, len(response_json), chunk_size):
-            yield response_json[i : min(i + chunk_size, len(response_json))]
-
     async def request_content_gen() -> AsyncIterator[bytes]:
         for i in range(0, len(request_content), chunk_size):
             yield request_content[i : min(i + chunk_size, len(request_content))]
+
+    async def response_content_gen() -> AsyncIterator[bytes]:
+        for i in range(0, len(response_json), chunk_size):
+            yield response_json[i : min(i + chunk_size, len(response_json))]
 
     async def app(scope: Scope, receive: Receive, send: Send) -> None:
         request = Request(scope, receive)
@@ -233,7 +233,7 @@ async def test_buffered_streaming() -> None:
 
 
 @pytest.mark.asyncio
-async def test_streaming_opt_in() -> None:
+async def test_request_streaming_opt_in() -> None:
     chunk_size = 8
     request_data = {"message": "unpacked"}
     request_content = msgpack.packb(request_data)
@@ -245,8 +245,7 @@ async def test_streaming_opt_in() -> None:
     async def app(scope: Scope, receive: Receive, send: Send) -> None:
         request = Request(scope, receive)
         await request.json()
-        response = JSONResponse({"message": "Hello, World!"})  # pragma: no cover
-        await response(scope, receive, send)  # pragma: no cover
+        ...  # pragma: no cover
 
     # No argument passed
     app = MessagePackMiddleware(app)
@@ -258,3 +257,28 @@ async def test_streaming_opt_in() -> None:
                 content=request_content_gen(),
                 headers={"content-type": "application/vnd.msgpack"},
             )
+
+
+@pytest.mark.asyncio
+async def test_response_streaming_opt_in() -> None:
+    chunk_size = 8
+    response_data = {"message": "Hello, World!"}
+    response_json = json.dumps(response_data).encode()
+
+    async def response_content_gen() -> AsyncIterator[bytes]:
+        for i in range(0, len(response_json), chunk_size):
+            yield response_json[i : min(i + chunk_size, len(response_json))]
+
+    async def app(scope: Scope, receive: Receive, send: Send) -> None:
+        response = StreamingResponse(
+            response_content_gen(), media_type="application/json"
+        )
+
+        await response(scope, receive, send)  # pragma: no cover
+
+    # No argument passed
+    app = MessagePackMiddleware(app)
+
+    async with _make_client(app) as client:
+        with pytest.raises(NotImplementedError):
+            _r = await client.post("/", headers={"accept": "application/vnd.msgpack"})
