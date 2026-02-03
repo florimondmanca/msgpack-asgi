@@ -7,59 +7,7 @@ import msgpack
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-_NAIVE_STREAMING_ERROR = (
-    "Streaming msgpack requests not supported. To allow naive (buffered)"
-    " streaming, set allow_naive_streaming=True in the middleware."
-)
-
 _msgpack_unpackb = partial(msgpack.unpackb, raw=False)
-
-
-def _std_json_dumps(*args: Any, **kwargs: Any) -> bytes:
-    return json.dumps(*args, **kwargs).encode()
-
-
-class _BufferedTranscoder:
-    def __init__(
-        self,
-        *,
-        encode: Callable[[Any], bytes],
-        decode: Callable[[bytes], Any],
-        allow_buffering: bool,
-    ) -> None:
-        self._encode = encode
-        self._decode = decode
-        self._buf = io.BytesIO()
-        self._allow_buffering = allow_buffering
-
-    def feed(self, data: bytes) -> None:
-        more_data = len(data) > 0
-        can_accept = self._allow_buffering or self._buf.tell() == 0
-        if not can_accept and more_data:
-            raise NotImplementedError(_NAIVE_STREAMING_ERROR)
-        self._buf.write(data)
-
-    def _decode_buffer(self) -> Any:
-        data = self._buf.getvalue()
-        self._buf = io.BytesIO()
-        return self._decode(data)
-
-    def transcode(self) -> bytes:
-        return self._encode(self._decode_buffer())
-
-
-class BufferedJsonPacker(_BufferedTranscoder):
-    def __init__(self, *, packb: Callable[[Any], bytes], allow_buffering: bool) -> None:
-        super().__init__(
-            encode=packb, decode=json.loads, allow_buffering=allow_buffering
-        )
-
-
-class BufferedJsonUnpacker(_BufferedTranscoder):
-    def __init__(self, unpackb: Callable[[bytes], Any], allow_buffering: bool) -> None:
-        super().__init__(
-            encode=_std_json_dumps, decode=unpackb, allow_buffering=allow_buffering
-        )
 
 
 class MessagePackMiddleware:
@@ -107,12 +55,8 @@ class _MessagePackResponder:
         content_type: str,
     ) -> None:
         self._app = app
-        self._packer = BufferedJsonPacker(
-            packb=packb, allow_buffering=allow_naive_streaming
-        )
-        self._unpacker = BufferedJsonUnpacker(
-            unpackb=unpackb, allow_buffering=allow_naive_streaming
-        )
+        self._packb = packb
+        self._unpackb = unpackb
         self._content_type = content_type
         self._should_decode_from_msgpack_to_json = False
         self._should_encode_from_json_to_msgpack = False
@@ -121,6 +65,7 @@ class _MessagePackResponder:
         self._initial_message: Message = {}
         self._started = False
         self._allow_naive_streaming = allow_naive_streaming
+        self._response_buffer: io.BytesIO | None = None
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         headers = MutableHeaders(scope=scope)
@@ -147,19 +92,45 @@ class _MessagePackResponder:
     async def receive_with_msgpack(self) -> Message:
         message = await self._receive()
 
+        if message["type"] != "http.request":
+            # Could be http.disconnect
+            return message
+
         if not self._should_decode_from_msgpack_to_json:
             return message
-        if message["type"] != "http.request":
+
+        if self._allow_naive_streaming:
+            body_buffer = io.BytesIO()
+
+            while True:
+                body_buffer.write(message["body"])
+
+                if not message.get("more_body", False):
+                    break
+
+                message = await self._receive()
+
+            message["body"] = json.dumps(self._unpackb(body_buffer.getvalue())).encode()
+
             return message
 
         body = message["body"]
-        self._unpacker.feed(body)
-        message["body"] = b""
-        more_body = message.get("more_body", False)
-        if more_body:
-            return message
 
-        message["body"] = self._unpacker.transcode()
+        if message.get("more_body", False):
+            # Some implementations (e.g. HTTPX) may send one more empty-body message.
+            # Make sure they don't send one that contains a body, or it means
+            # that clients attempt to stream the request body which has not
+            # been explicitly allowed.
+            message = await self._receive()
+
+            if message["body"] != b"":
+                raise NotImplementedError(
+                    "Streaming msgpack request not supported. To allow naive (buffered)"
+                    " streaming, set allow_naive_streaming=True in the middleware."
+                )
+
+        message["body"] = json.dumps(self._unpackb(body)).encode() if body else b"{}"
+
         return message
 
     async def send_with_msgpack(self, message: Message) -> None:
@@ -181,16 +152,26 @@ class _MessagePackResponder:
             self.initial_message = message
 
         elif message["type"] == "http.response.body":
-            assert self._should_encode_from_json_to_msgpack
-
             body = message.get("body", b"")
-            more_body = message.get("more_body", False)
-            self._packer.feed(body)
 
-            if more_body:
-                return
+            if self._allow_naive_streaming:
+                if self._response_buffer is None:
+                    self._response_buffer = io.BytesIO()
 
-            body = self._packer.transcode()
+                self._response_buffer.write(body)
+
+                if message.get("more_body", False):
+                    return
+
+                body = self._packb(json.loads(self._response_buffer.getvalue()))
+            elif message.get("more_body", False):
+                raise NotImplementedError(
+                    "Streaming msgpack response not supported. To allow naive "
+                    "(buffered) streaming, set allow_naive_streaming=True in the "
+                    "middleware."
+                )
+            else:
+                body = self._packb(json.loads(body))
 
             headers = MutableHeaders(raw=self.initial_message["headers"])
             headers["Content-Type"] = self._content_type
