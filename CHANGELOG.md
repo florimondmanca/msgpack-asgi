@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 3.0.0 - 2026-02-03
+
+### Removed
+
+* Drop official support for Python 3.9 as it has reached EOL. (Pull #35)
+
+### Added
+
+* Add official support for Python 3.14. (Pull #35)
+* Add naive buffered request and response streaming, opt-in via `allow_naive_streaming=True`. (Pull #33, #34)
+
 ## 2.0.0 - 2025-07-05
 
 _This release includes a potentially breaking change and updates the compatible Python versions._

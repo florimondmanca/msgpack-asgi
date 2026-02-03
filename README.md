@@ -21,7 +21,7 @@ This gives you the bandwitdth usage reduction benefits of MessagePack without ha
 Install with pip:
 
 ```bash
-pip install "msgpack-asgi==2.*"
+pip install "msgpack-asgi==3.*"
 ```
 
 **Be sure to pin to the latest major version**, as above. Breaking changes may occur across major versions. If so, details on migration steps will be provided in CHANGELOG.md.
